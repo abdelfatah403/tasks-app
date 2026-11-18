@@ -12,6 +12,7 @@ import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
+import com.taskflow.app.data.model.TagEntity
 import com.taskflow.app.data.model.TaskEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,7 @@ import java.time.LocalDate
 @Database(
     entities = [
         ProjectEntity::class,
+        TagEntity::class,
         TaskEntity::class,
         SubtaskEntity::class,
         HabitEntity::class,
@@ -29,7 +31,7 @@ import java.time.LocalDate
         FocusSessionEntity::class,
         NoteEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class TaskFlowDatabase : RoomDatabase() {
@@ -79,6 +81,15 @@ abstract class TaskFlowDatabase : RoomDatabase() {
                 ProjectEntity(id = 5, name = "Shopping", colorHex = 0xFF06B6D4, iconName = "cart", isDefault = false)
             )
             dao.insertProjects(projects)
+
+            val starterTags = listOf(
+                TagEntity(name = "deepwork", colorHex = 0xFF6366F1),
+                TagEntity(name = "urgent", colorHex = 0xFFEF4444),
+                TagEntity(name = "health", colorHex = 0xFF10B981),
+                TagEntity(name = "errands", colorHex = 0xFFF59E0B),
+                TagEntity(name = "planning", colorHex = 0xFF8B5CF6)
+            )
+            dao.insertTags(starterTags)
 
             val task1Id = dao.insertTask(
                 TaskEntity(

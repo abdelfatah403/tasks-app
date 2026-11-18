@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Timer
@@ -76,6 +77,7 @@ import androidx.compose.ui.unit.sp
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
+import com.taskflow.app.data.model.TagEntity
 import com.taskflow.app.data.model.TaskEntity
 import com.taskflow.app.data.model.TaskPriority
 import com.taskflow.app.ui.TaskFilterMode
@@ -88,6 +90,7 @@ fun TasksScreen(
     allTasks: List<TaskEntity>,
     subtasks: List<SubtaskEntity>,
     projects: List<ProjectEntity>,
+    savedTags: List<TagEntity> = emptyList(),
     selectedFilter: TaskFilterMode,
     selectedProjectId: Long?,
     selectedTag: String?,
@@ -107,6 +110,7 @@ fun TasksScreen(
     onDeleteSubtask: (SubtaskEntity) -> Unit,
     onStartFocusForTask: (TaskEntity) -> Unit,
     onOpenVoiceQuickAdd: () -> Unit,
+    onOpenManageProjectsAndTags: () -> Unit = {},
     onClearCompleted: () -> Unit
 ) {
     val todayEpoch = LocalDate.now().toEpochDay()
@@ -116,9 +120,9 @@ fun TasksScreen(
     }.coerceAtLeast(1)
     val dailyGoalProgress = (completedTodayCount.toFloat() / totalTodayCount.toFloat()).coerceIn(0f, 1f)
 
-    // Collect all unique tags across tasks
-    val allTags = remember(allTasks) {
-        allTasks.flatMap { it.tagsList }.distinct()
+    // Collect all unique tags across saved TagEntities + tasks
+    val allTags = remember(allTasks, savedTags) {
+        (savedTags.map { it.name.lowercase() } + allTasks.flatMap { it.tagsList.map { t -> t.lowercase() } }).distinct()
     }
 
     LazyColumn(
@@ -297,6 +301,20 @@ fun TasksScreen(
                         label = { Text("@$tag") }
                     )
                 }
+
+                // Manage #Projects & @Tags Chip (Add / Rename / Delete)
+                FilterChip(
+                    selected = false,
+                    onClick = onOpenManageProjectsAndTags,
+                    label = { Text("Manage # / @") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Manage Projects and Tags",
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                )
             }
         }
 

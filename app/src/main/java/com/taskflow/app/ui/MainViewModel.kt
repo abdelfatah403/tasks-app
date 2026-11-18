@@ -1,6 +1,7 @@
 package com.taskflow.app.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.taskflow.app.data.local.TaskFlowDatabase
@@ -11,11 +12,13 @@ import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
+import com.taskflow.app.data.model.TagEntity
 import com.taskflow.app.data.model.TaskEntity
 import com.taskflow.app.data.model.TaskPriority
 import com.taskflow.app.data.repository.TaskFlowRepository
 import com.taskflow.app.domain.SmartQuickAddParser
 import com.taskflow.app.widget.TaskFlowWidgetProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +28,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 
 enum class TaskFilterMode(val label: String) {
@@ -70,6 +75,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = TaskFlowRepository(database.taskFlowDao())
 
     val projects: StateFlow<List<ProjectEntity>> = repository.projectsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val tags: StateFlow<List<TagEntity>> = repository.tagsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allTasks: StateFlow<List<TaskEntity>> = repository.tasksFlow
@@ -339,10 +347,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Projects ---
+    // --- Projects (Add, Update/Rename, Delete) ---
     fun addProject(name: String, colorHex: Long) {
         viewModelScope.launch {
             repository.addProject(name, colorHex)
+            _statusBannerMessage.value = "Project \"#${name.trim()}\" created!"
+        }
+    }
+
+    fun updateProject(project: ProjectEntity, newName: String, newColorHex: Long) {
+        viewModelScope.launch {
+            repository.updateProject(project, newName, newColorHex)
+            refreshHomeWidget()
+            _statusBannerMessage.value = "Updated project to \"#${newName.trim()}\""
+        }
+    }
+
+    fun deleteProject(project: ProjectEntity) {
+        viewModelScope.launch {
+            if (_selectedProjectId.value == project.id) {
+                _selectedProjectId.value = null
+            }
+            repository.deleteProject(project)
+            refreshHomeWidget()
+            _statusBannerMessage.value = "Deleted project \"#${project.name}\" (tasks moved to #Inbox)"
+        }
+    }
+
+    // --- Tags (Add, Update/Rename, Delete) ---
+    fun addTag(name: String, colorHex: Long = 0xFF8B5CF6) {
+        val clean = name.trim().removePrefix("@").lowercase()
+        if (clean.isBlank()) return
+        viewModelScope.launch {
+            repository.addTag(clean, colorHex)
+            _statusBannerMessage.value = "Tag \"@$clean\" added!"
+        }
+    }
+
+    fun renameTag(oldName: String, newName: String, colorHex: Long = 0xFF8B5CF6) {
+        val cleanOld = oldName.trim().removePrefix("@").lowercase()
+        val cleanNew = newName.trim().removePrefix("@").lowercase()
+        if (cleanOld.isBlank() || cleanNew.isBlank()) return
+        viewModelScope.launch {
+            if (_selectedTag.value.equals(cleanOld, ignoreCase = true)) {
+                _selectedTag.value = cleanNew
+            }
+            repository.renameTag(cleanOld, cleanNew, colorHex)
+            _statusBannerMessage.value = "Updated tag \"@$cleanOld\" → \"@$cleanNew\""
+        }
+    }
+
+    fun deleteTag(tagName: String) {
+        val clean = tagName.trim().removePrefix("@").lowercase()
+        if (clean.isBlank()) return
+        viewModelScope.launch {
+            if (_selectedTag.value.equals(clean, ignoreCase = true)) {
+                _selectedTag.value = null
+            }
+            repository.deleteTag(clean)
+            _statusBannerMessage.value = "Deleted tag \"@$clean\""
         }
     }
 
@@ -522,16 +585,68 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- Offline JSON Backup Export & Restore ---
+    private val localBackupFile: File
+        get() = File(getApplication<Application>().filesDir, "taskflow_latest_backup.json")
+
     suspend fun exportBackupJson(): String {
-        return repository.exportBackupJson()
+        val jsonStr = repository.exportBackupJson()
+        withContext(Dispatchers.IO) {
+            runCatching { localBackupFile.writeText(jsonStr, Charsets.UTF_8) }
+        }
+        return jsonStr
+    }
+
+    suspend fun readLatestLocalBackup(): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            if (localBackupFile.exists()) localBackupFile.readText(Charsets.UTF_8) else null
+        }.getOrNull()
+    }
+
+    fun exportBackupToUri(uri: Uri) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val jsonStr = exportBackupJson()
+                withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(jsonStr.toByteArray(Charsets.UTF_8))
+                        out.flush()
+                    } ?: error("Could not open selected file for writing")
+                }
+            }
+            result.onSuccess {
+                _statusBannerMessage.value = "✅ Backup exported to .json file & saved locally!"
+            }.onFailure { err ->
+                _statusBannerMessage.value = "Export failed: ${err.localizedMessage ?: "Write error"}"
+            }
+        }
+    }
+
+    fun importBackupFromUri(uri: Uri) {
+        viewModelScope.launch {
+            val readResult = withContext(Dispatchers.IO) {
+                runCatching {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader(Charsets.UTF_8).readText()
+                    } ?: error("Could not read selected backup file")
+                }
+            }
+            readResult.onSuccess { rawJson ->
+                importBackupJson(rawJson)
+            }.onFailure { err ->
+                _statusBannerMessage.value = "Could not read file: ${err.localizedMessage}"
+            }
+        }
     }
 
     fun importBackupJson(rawJson: String) {
         viewModelScope.launch {
             val result = repository.importBackupJson(rawJson)
             result.onSuccess { count ->
+                withContext(Dispatchers.IO) {
+                    runCatching { localBackupFile.writeText(rawJson.trim(), Charsets.UTF_8) }
+                }
                 refreshHomeWidget()
-                _statusBannerMessage.value = "Restored $count items from local backup!"
+                _statusBannerMessage.value = "✅ Restored $count items from backup!"
             }.onFailure { err ->
                 _statusBannerMessage.value = "Backup restore failed: ${err.localizedMessage ?: "Invalid JSON"}"
             }

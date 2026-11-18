@@ -13,6 +13,7 @@ import com.taskflow.app.data.model.HabitLogEntity
 import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.SubtaskEntity
+import com.taskflow.app.data.model.TagEntity
 import com.taskflow.app.data.model.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -32,8 +33,45 @@ interface TaskFlowDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProjects(projects: List<ProjectEntity>)
 
+    @Update
+    suspend fun updateProject(project: ProjectEntity)
+
     @Delete
     suspend fun deleteProject(project: ProjectEntity)
+
+    @Query("UPDATE tasks SET projectName = :newName WHERE projectId = :projectId")
+    suspend fun updateTaskProjectNames(projectId: Long, newName: String)
+
+    @Query("UPDATE notes SET projectName = :newName WHERE projectId = :projectId")
+    suspend fun updateNoteProjectNames(projectId: Long, newName: String)
+
+    @Query("UPDATE tasks SET projectId = 1, projectName = 'Inbox' WHERE projectId = :deletedProjectId")
+    suspend fun reassignTasksToInbox(deletedProjectId: Long)
+
+    @Query("UPDATE notes SET projectId = 1, projectName = 'Inbox' WHERE projectId = :deletedProjectId")
+    suspend fun reassignNotesToInbox(deletedProjectId: Long)
+
+    // --- Tags ---
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    fun observeTags(): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    suspend fun getAllTagsSnapshot(): List<TagEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTag(tag: TagEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTags(tags: List<TagEntity>)
+
+    @Update
+    suspend fun updateTag(tag: TagEntity)
+
+    @Delete
+    suspend fun deleteTag(tag: TagEntity)
+
+    @Query("DELETE FROM tags WHERE LOWER(name) = LOWER(:tagName)")
+    suspend fun deleteTagByName(tagName: String)
 
     // --- Tasks ---
     @Query(
@@ -184,9 +222,13 @@ interface TaskFlowDao {
     @Query("DELETE FROM notes")
     suspend fun clearAllNotes()
 
+    @Query("DELETE FROM tags")
+    suspend fun clearAllTags()
+
     @Transaction
     suspend fun restoreFullBackup(
         projects: List<ProjectEntity>,
+        tags: List<TagEntity>,
         tasks: List<TaskEntity>,
         subtasks: List<SubtaskEntity>,
         habits: List<HabitEntity>,
@@ -197,12 +239,14 @@ interface TaskFlowDao {
         clearAllSubtasks()
         clearAllTasks()
         clearAllProjects()
+        clearAllTags()
         clearAllHabitLogs()
         clearAllHabits()
         clearAllFocusSessions()
         clearAllNotes()
 
         insertProjects(projects)
+        insertTags(tags)
         insertTasks(tasks)
         insertSubtasks(subtasks)
         insertHabits(habits)

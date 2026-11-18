@@ -62,6 +62,7 @@ import com.taskflow.app.data.model.TaskEntity
 import com.taskflow.app.data.model.TaskPriority
 import com.taskflow.app.ui.MainViewModel
 import com.taskflow.app.ui.components.EditTaskBottomSheet
+import com.taskflow.app.ui.components.ManageProjectsAndTagsSheet
 import com.taskflow.app.ui.components.QuickAddBottomSheet
 import com.taskflow.app.ui.screens.CalendarTimelineScreen
 import com.taskflow.app.ui.screens.EisenhowerMatrixScreen
@@ -97,6 +98,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isDarkMode by viewModel.isDarkMode.collectAsState()
             val projects by viewModel.projects.collectAsState()
+            val tags by viewModel.tags.collectAsState()
             val filteredTasks by viewModel.filteredTasks.collectAsState()
             val allTasks by viewModel.allTasks.collectAsState()
             val subtasks by viewModel.allSubtasks.collectAsState()
@@ -124,7 +126,24 @@ class MainActivity : ComponentActivity() {
             var quickAddInitialText by remember { mutableStateOf("") }
             var quickAddInitialPriority by remember { mutableStateOf<TaskPriority?>(null) }
             var editingTask by remember { mutableStateOf<TaskEntity?>(null) }
-            var showNewProjectDialog by remember { mutableStateOf(false) }
+            var showManageProjectsAndTagsSheet by remember { mutableStateOf(false) }
+
+            // Native Android File Pickers for JSON Backup Export & Restore
+            val exportBackupLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.CreateDocument("application/json")
+            ) { uri ->
+                if (uri != null) {
+                    viewModel.exportBackupToUri(uri)
+                }
+            }
+
+            val importBackupLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) {
+                    viewModel.importBackupFromUri(uri)
+                }
+            }
 
             // Pending Voice callback holder
             var pendingVoiceCallback by remember { mutableStateOf<((String) -> Unit)?>(null) }
@@ -198,10 +217,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                IconButton(onClick = { showNewProjectDialog = true }) {
+                                IconButton(onClick = { showManageProjectsAndTagsSheet = true }) {
                                     Icon(
                                         imageVector = Icons.Default.CreateNewFolder,
-                                        contentDescription = "New Project List"
+                                        contentDescription = "Manage Projects & Tags"
                                     )
                                 }
                                 IconButton(onClick = { viewModel.toggleDarkMode() }) {
@@ -258,6 +277,7 @@ class MainActivity : ComponentActivity() {
                                     allTasks = allTasks,
                                     subtasks = subtasks,
                                     projects = projects,
+                                    savedTags = tags,
                                     selectedFilter = selectedFilter,
                                     selectedProjectId = selectedProjectId,
                                     selectedTag = selectedTag,
@@ -286,6 +306,9 @@ class MainActivity : ComponentActivity() {
                                         launchVoiceRecognition { spoken ->
                                             quickAddInitialText = spoken
                                         }
+                                    },
+                                    onOpenManageProjectsAndTags = {
+                                        showManageProjectsAndTagsSheet = true
                                     },
                                     onClearCompleted = viewModel::clearCompletedTasks
                                 )
@@ -361,7 +384,14 @@ class MainActivity : ComponentActivity() {
                                     onAddHabit = viewModel::addHabit,
                                     onDeleteHabit = viewModel::deleteHabit,
                                     onExportBackupJson = viewModel::exportBackupJson,
+                                    onReadLatestLocalBackup = viewModel::readLatestLocalBackup,
                                     onImportBackupJson = viewModel::importBackupJson,
+                                    onSaveBackupToFile = {
+                                        exportBackupLauncher.launch("taskflow_backup.json")
+                                    },
+                                    onLoadBackupFromFile = {
+                                        importBackupLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                                    },
                                     onShowMessage = viewModel::postBannerMessage
                                 )
                             }
@@ -436,36 +466,21 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                if (showNewProjectDialog) {
-                    var newProjName by remember { mutableStateOf("") }
-                    AlertDialog(
-                        onDismissRequest = { showNewProjectDialog = false },
-                        title = { Text("New Project / List") },
-                        text = {
-                            OutlinedTextField(
-                                value = newProjName,
-                                onValueChange = { newProjName = it },
-                                label = { Text("Project Name (e.g., SideHustle)") },
-                                singleLine = true
-                            )
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    if (newProjName.isNotBlank()) {
-                                        viewModel.addProject(newProjName, 0xFF8B5CF6)
-                                        showNewProjectDialog = false
-                                    }
-                                }
-                            ) {
-                                Text("Create")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showNewProjectDialog = false }) {
-                                Text("Cancel")
-                            }
-                        }
+                if (showManageProjectsAndTagsSheet) {
+                    val allUsedTagNames = remember(allTasks, notes) {
+                        (allTasks.flatMap { it.tagsList } + notes.flatMap { it.tagsList }).distinct()
+                    }
+                    ManageProjectsAndTagsSheet(
+                        projects = projects,
+                        tags = tags,
+                        allUsedTagNames = allUsedTagNames,
+                        onAddProject = viewModel::addProject,
+                        onUpdateProject = viewModel::updateProject,
+                        onDeleteProject = viewModel::deleteProject,
+                        onAddTag = viewModel::addTag,
+                        onRenameTag = viewModel::renameTag,
+                        onDeleteTag = viewModel::deleteTag,
+                        onDismiss = { showManageProjectsAndTagsSheet = false }
                     )
                 }
             }

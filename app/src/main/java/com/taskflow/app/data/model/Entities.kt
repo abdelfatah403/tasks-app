@@ -175,10 +175,19 @@ data class NoteEntity(
 }
 
 @Serializable
+@Entity(tableName = "tags")
+data class TagEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val colorHex: Long = 0xFF8B5CF6
+)
+
+@Serializable
 data class BackupPayload(
-    val version: Int = 2,
+    val version: Int = 3,
     val exportedAtMillis: Long = System.currentTimeMillis(),
     val projects: List<ProjectEntity> = emptyList(),
+    val tags: List<TagEntity> = emptyList(),
     val tasks: List<TaskEntity> = emptyList(),
     val subtasks: List<SubtaskEntity> = emptyList(),
     val habits: List<HabitEntity> = emptyList(),

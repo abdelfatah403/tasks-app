@@ -22,10 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,7 +77,10 @@ fun HabitsAndStatsScreen(
     onAddHabit: (String, String, Long, Int) -> Unit,
     onDeleteHabit: (HabitEntity) -> Unit,
     onExportBackupJson: suspend () -> String,
+    onReadLatestLocalBackup: suspend () -> String? = { null },
     onImportBackupJson: (String) -> Unit,
+    onSaveBackupToFile: () -> Unit = {},
+    onLoadBackupFromFile: () -> Unit = {},
     onShowMessage: (String) -> Unit
 ) {
     val todayEpoch = LocalDate.now().toEpochDay()
@@ -315,7 +322,7 @@ fun HabitsAndStatsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "All tasks, habits, and focus sessions are stored privately on-device in SQLite/Room. Export or restore a full JSON snapshot anytime.",
+                        text = "All tasks, notes, projects, tags, habits, and focus sessions are stored privately on-device. Export or restore a full JSON backup anytime.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
@@ -328,7 +335,7 @@ fun HabitsAndStatsScreen(
                                     backupJsonText = onExportBackupJson()
                                     clipboard.setText(AnnotatedString(backupJsonText))
                                     showBackupModal = true
-                                    onShowMessage("Backup JSON copied to clipboard!")
+                                    onShowMessage("✅ Backup exported, saved to local snapshot & copied to clipboard!")
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -341,8 +348,16 @@ fun HabitsAndStatsScreen(
 
                         OutlinedButton(
                             onClick = {
-                                backupJsonText = ""
-                                showBackupModal = true
+                                scope.launch {
+                                    val clipText = clipboard.getText()?.text?.trim().orEmpty()
+                                    val localSnap = onReadLatestLocalBackup().orEmpty()
+                                    backupJsonText = when {
+                                        clipText.startsWith("{") -> clipText
+                                        localSnap.isNotBlank() -> localSnap
+                                        else -> ""
+                                    }
+                                    showBackupModal = true
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
@@ -350,6 +365,31 @@ fun HabitsAndStatsScreen(
                             Icon(imageVector = Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Restore JSON")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Direct File Picker Save & Load Row
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = onSaveBackupToFile,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save .json File", fontSize = 12.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = onLoadBackupFromFile,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open .json File", fontSize = 12.sp)
                         }
                     }
                 }
@@ -374,19 +414,63 @@ fun HabitsAndStatsScreen(
     if (showBackupModal) {
         AlertDialog(
             onDismissRequest = { showBackupModal = false },
-            title = { Text("Offline JSON Backup / Restore") },
+            title = { Text("Offline JSON Backup & Restore") },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Copy this JSON to save your backup, or paste a previously exported JSON below and tap Restore.",
+                        text = "Use the quick actions below to paste from clipboard, load your latest on-device snapshot, or edit/inspect the JSON before restoring:",
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val clip = clipboard.getText()?.text.orEmpty()
+                                if (clip.isNotBlank()) {
+                                    backupJsonText = clip
+                                    onShowMessage("Pasted JSON from clipboard!")
+                                } else {
+                                    onShowMessage("Clipboard is empty")
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Paste Clipboard", fontSize = 11.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    val snap = onReadLatestLocalBackup()
+                                    if (!snap.isNullOrBlank()) {
+                                        backupJsonText = snap
+                                        onShowMessage("Loaded latest local snapshot!")
+                                    } else {
+                                        onShowMessage("No local snapshot found — tap Export JSON first")
+                                    }
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Load Snapshot", fontSize = 11.sp)
+                        }
+                    }
+
                     OutlinedTextField(
                         value = backupJsonText,
                         onValueChange = { backupJsonText = it },
-                        placeholder = { Text("Paste backup JSON here...") },
-                        maxLines = 8,
+                        placeholder = { Text("Backup JSON content...") },
+                        minLines = 5,
+                        maxLines = 9,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -394,13 +478,18 @@ fun HabitsAndStatsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (backupJsonText.isNotBlank()) {
-                            onImportBackupJson(backupJsonText)
+                        val candidate = backupJsonText.ifBlank {
+                            clipboard.getText()?.text.orEmpty()
+                        }
+                        if (candidate.isNotBlank()) {
+                            onImportBackupJson(candidate)
                             showBackupModal = false
+                        } else {
+                            onShowMessage("Please paste or load a backup JSON first")
                         }
                     }
                 ) {
-                    Text("Restore Backup")
+                    Text("Restore Backup Now")
                 }
             },
             dismissButton = {
