@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">TaskFlow</string>
+    <string name="widget_name">TaskFlow Today &amp; Quick Add</string>
+    <string name="widget_description">View today\'s top tasks, focus streaks, and launch Smart or Voice Quick-Add.</string>
+</resources>
