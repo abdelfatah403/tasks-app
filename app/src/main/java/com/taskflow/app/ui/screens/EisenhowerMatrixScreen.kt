@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -55,6 +56,7 @@ fun EisenhowerMatrixScreen(
     allTasks: List<TaskEntity>,
     onToggleComplete: (TaskEntity) -> Unit,
     onMovePriority: (TaskEntity, TaskPriority) -> Unit,
+    onDeleteTask: (TaskEntity) -> Unit = {},
     onQuickAddInQuadrant: (TaskPriority) -> Unit
 ) {
     val activeTasks = remember(allTasks) { allTasks.filter { !it.isCompleted } }
@@ -106,6 +108,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q1Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P1) },
                     modifier = Modifier.weight(1f)
                 )
@@ -114,6 +117,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q2Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P2) },
                     modifier = Modifier.weight(1f)
                 )
@@ -131,6 +135,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q3Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P3) },
                     modifier = Modifier.weight(1f)
                 )
@@ -139,6 +144,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q4Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P4) },
                     modifier = Modifier.weight(1f)
                 )
@@ -157,6 +163,7 @@ private fun QuadrantCard(
     tasks: List<TaskEntity>,
     onToggleComplete: (TaskEntity) -> Unit,
     onMovePriority: (TaskEntity, TaskPriority) -> Unit,
+    onDeleteTask: (TaskEntity) -> Unit,
     onQuickAdd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -240,7 +247,8 @@ private fun QuadrantCard(
                             task = task,
                             accent = accent,
                             onToggleComplete = { onToggleComplete(task) },
-                            onMovePriority = { target -> onMovePriority(task, target) }
+                            onMovePriority = { target -> onMovePriority(task, target) },
+                            onDeleteTask = { onDeleteTask(task) }
                         )
                     }
                 }
@@ -254,7 +262,8 @@ private fun QuadrantTaskRow(
     task: TaskEntity,
     accent: Color,
     onToggleComplete: () -> Unit,
-    onMovePriority: (TaskPriority) -> Unit
+    onMovePriority: (TaskPriority) -> Unit,
+    onDeleteTask: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -317,6 +326,17 @@ private fun QuadrantTaskRow(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Icon(
+                imageVector = Icons.Default.DeleteOutline,
+                contentDescription = "Delete Task",
+                tint = Color(0xFFEF4444).copy(alpha = 0.85f),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onDeleteTask() }
+            )
         }
     }
 }

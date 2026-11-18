@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,8 +53,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -362,7 +366,7 @@ fun TasksScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun TaskCardItem(
     task: TaskEntity,
@@ -385,274 +389,355 @@ private fun TaskCardItem(
     val priorityColor = Color(task.priority.colorHex)
     val isOverdue = !task.isCompleted && task.dueDateEpochDay != null && task.dueDateEpochDay < todayEpoch
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = if (isOverdue) Color(0xFFEF4444).copy(alpha = 0.6f)
-                else MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clickable { expanded = !expanded }
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                verticalAlignment = Alignment.Top,
-                modifier = Modifier.fillMaxWidth()
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { targetValue ->
+            when (targetValue) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Swipe Left -> Delete immediately (whether completed or not!)
+                    onDeleteTask()
+                    true
+                }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    // Swipe Right -> Toggle completion
+                    onToggleComplete()
+                    false
+                }
+                SwipeToDismissBoxValue.Settled -> false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val bgColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Color(0xFF10B981).copy(alpha = 0.25f)
+                SwipeToDismissBoxValue.EndToStart -> Color(0xFFEF4444).copy(alpha = 0.25f)
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else -> Alignment.CenterEnd
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(bgColor)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = alignment
             ) {
-                // Priority-colored Complete Button
-                IconButton(
-                    onClick = onToggleComplete,
-                    modifier = Modifier.size(28.dp)
+                if (direction == SwipeToDismissBoxValue.StartToEnd) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Complete",
+                            tint = Color(0xFF10B981)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Complete", color = Color(0xFF10B981), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                } else if (direction == SwipeToDismissBoxValue.EndToStart) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Delete", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Delete",
+                            tint = Color(0xFFEF4444)
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = if (isOverdue) Color(0xFFEF4444).copy(alpha = 0.6f)
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .clickable { expanded = !expanded }
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = "Complete task",
-                        tint = if (task.isCompleted) Color(0xFF10B981) else priorityColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (task.notes.isNotBlank()) {
-                        Text(
-                            text = task.notes,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = if (expanded) 5 else 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Metadata Badges Row
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Priority Pill
-                        MetaPill(
-                            text = task.priority.shortTag,
-                            color = priorityColor
-                        )
-
-                        // Project Pill
-                        MetaPill(
-                            text = "#${task.projectName}",
-                            color = Color(projectColorHex)
-                        )
-
-                        // Due Date + Time Pill
-                        task.dueDateEpochDay?.let { epoch ->
-                            val dateLabel = when (epoch) {
-                                todayEpoch -> "Today"
-                                todayEpoch + 1 -> "Tomorrow"
-                                todayEpoch - 1 -> "Yesterday"
-                                else -> LocalDate.ofEpochDay(epoch).toString()
-                            }
-                            val fullDateStr = if (task.formattedTime != null) "$dateLabel • ${task.formattedTime}" else dateLabel
-                            MetaPill(
-                                text = if (isOverdue) "⚠️ Overdue ($fullDateStr)" else "📅 $fullDateStr",
-                                color = if (isOverdue) Color(0xFFEF4444) else Color(0xFF3B82F6)
-                            )
-                        }
-
-                        // Recurrence Badge
-                        if (task.recurrence != RecurrenceType.NONE) {
-                            MetaPill(
-                                text = "🔁 ${task.recurrence.label}",
-                                color = Color(0xFF10B981)
-                            )
-                        }
-
-                        // Pomodoro Badge
-                        MetaPill(
-                            text = "🍅 ${task.completedPomodoros}/${task.estimatedPomodoros}",
-                            color = Color(0xFFF59E0B)
-                        )
-
-                        // Subtasks count badge
-                        if (subtasks.isNotEmpty()) {
-                            val doneSub = subtasks.count { it.isCompleted }
-                            MetaPill(
-                                text = "☑️ $doneSub/${subtasks.size}",
-                                color = Color(0xFF8B5CF6)
-                            )
-                        }
-
-                        // Tags
-                        task.tagsList.forEach { tag ->
-                            MetaPill(
-                                text = "@$tag",
-                                color = Color(0xFF64748B)
-                            )
-                        }
-                    }
-                }
-
-                // Right-side Quick Actions: Start Focus + Star
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Priority-colored Complete Button
                     IconButton(
-                        onClick = onToggleStar,
+                        onClick = onToggleComplete,
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            imageVector = if (task.isStarred) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = "Star",
-                            tint = if (task.isStarred) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = if (task.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            contentDescription = "Complete task",
+                            tint = if (task.isCompleted) Color(0xFF10B981) else priorityColor,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
-                    if (!task.isCompleted) {
-                        IconButton(
-                            onClick = onStartFocus,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Start Focus Timer",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = task.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                            color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                        )
+
+                        if (task.notes.isNotBlank()) {
+                            Text(
+                                text = task.notes,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (expanded) 5 else 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
-                    }
 
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            // Expandable Task Detail Drawer (Subtasks, Quick Reschedule, Quadrant Switch, Delete)
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Subtasks Checklist
-                    Text(
-                        text = "Checklist / Subtasks",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    subtasks.forEach { sub ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Metadata Badges Row
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Checkbox(
-                                checked = sub.isCompleted,
-                                onCheckedChange = { onToggleSubtask(sub) }
+                            // Priority Pill
+                            MetaPill(
+                                text = task.priority.shortTag,
+                                color = priorityColor
                             )
-                            Text(
-                                text = sub.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                textDecoration = if (sub.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                                modifier = Modifier.weight(1f)
+
+                            // Project Pill
+                            MetaPill(
+                                text = "#${task.projectName}",
+                                color = Color(projectColorHex)
                             )
-                            IconButton(onClick = { onDeleteSubtask(sub) }, modifier = Modifier.size(28.dp)) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Remove subtask",
-                                    modifier = Modifier.size(16.dp)
+
+                            // Due Date + Time Pill
+                            task.dueDateEpochDay?.let { epoch ->
+                                val dateLabel = when (epoch) {
+                                    todayEpoch -> "Today"
+                                    todayEpoch + 1 -> "Tomorrow"
+                                    todayEpoch - 1 -> "Yesterday"
+                                    else -> LocalDate.ofEpochDay(epoch).toString()
+                                }
+                                val fullDateStr = if (task.formattedTime != null) "$dateLabel • ${task.formattedTime}" else dateLabel
+                                MetaPill(
+                                    text = if (isOverdue) "⚠️ Overdue ($fullDateStr)" else "📅 $fullDateStr",
+                                    color = if (isOverdue) Color(0xFFEF4444) else Color(0xFF3B82F6)
+                                )
+                            }
+
+                            // Recurrence Badge
+                            if (task.recurrence != RecurrenceType.NONE) {
+                                MetaPill(
+                                    text = "🔁 ${task.recurrence.label}",
+                                    color = Color(0xFF10B981)
+                                )
+                            }
+
+                            // Pomodoro Badge
+                            MetaPill(
+                                text = "🍅 ${task.completedPomodoros}/${task.estimatedPomodoros}",
+                                color = Color(0xFFF59E0B)
+                            )
+
+                            // Subtasks count badge
+                            if (subtasks.isNotEmpty()) {
+                                val doneSub = subtasks.count { it.isCompleted }
+                                MetaPill(
+                                    text = "☑️ $doneSub/${subtasks.size}",
+                                    color = Color(0xFF8B5CF6)
+                                )
+                            }
+
+                            // Tags
+                            task.tagsList.forEach { tag ->
+                                MetaPill(
+                                    text = "@$tag",
+                                    color = Color(0xFF64748B)
                                 )
                             }
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = newSubtaskTitle,
-                            onValueChange = { newSubtaskTitle = it },
-                            placeholder = { Text("Add subtask step...") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        IconButton(
-                            onClick = {
-                                if (newSubtaskTitle.isNotBlank()) {
-                                    onAddSubtask(newSubtaskTitle)
-                                    newSubtaskTitle = ""
+                    // Right-side Quick Actions: Star + Start Focus + Direct 1-Tap Delete
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = onToggleStar,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (task.isStarred) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Star",
+                                    tint = if (task.isStarred) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Direct 1-Tap Delete Button (works anytime without completing the task)
+                            IconButton(
+                                onClick = onDeleteTask,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete Task",
+                                    tint = Color(0xFFEF4444).copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!task.isCompleted) {
+                                IconButton(
+                                    onClick = onStartFocus,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Timer,
+                                        contentDescription = "Start Focus Timer",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = "Add subtask")
+
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Quick Priority Switcher + Reschedule + Delete Row
-                    Row(
+                // Expandable Task Detail Drawer (Subtasks, Quick Reschedule, Quadrant Switch, Delete)
+                AnimatedVisibility(visible = expanded) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(top = 12.dp)
                     ) {
-                        TaskPriority.entries.forEach { prio ->
-                            FilterChip(
-                                selected = task.priority == prio,
-                                onClick = { onChangePriority(prio) },
-                                label = { Text(prio.shortTag, fontSize = 11.sp) }
-                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Subtasks Checklist
+                        Text(
+                            text = "Checklist / Subtasks",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        subtasks.forEach { sub ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = sub.isCompleted,
+                                    onCheckedChange = { onToggleSubtask(sub) }
+                                )
+                                Text(
+                                    text = sub.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textDecoration = if (sub.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = { onDeleteSubtask(sub) }, modifier = Modifier.size(28.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Remove subtask",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
 
-                        FilterChip(
-                            selected = false,
-                            onClick = { onRescheduleTask(todayEpoch) },
-                            label = { Text("Today", fontSize = 11.sp) }
-                        )
-                        FilterChip(
-                            selected = false,
-                            onClick = { onRescheduleTask(todayEpoch + 1) },
-                            label = { Text("+1 Day", fontSize = 11.sp) }
-                        )
-
-                        TextButton(onClick = onDeleteTask) {
-                            Icon(
-                                imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Delete",
-                                tint = Color(0xFFEF4444),
-                                modifier = Modifier.size(16.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = newSubtaskTitle,
+                                onValueChange = { newSubtaskTitle = it },
+                                placeholder = { Text("Add subtask step...") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("Delete", color = Color(0xFFEF4444), fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            IconButton(
+                                onClick = {
+                                    if (newSubtaskTitle.isNotBlank()) {
+                                        onAddSubtask(newSubtaskTitle)
+                                        newSubtaskTitle = ""
+                                    }
+                                }
+                            ) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add subtask")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Quick Priority Switcher + Reschedule + Delete Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TaskPriority.entries.forEach { prio ->
+                                FilterChip(
+                                    selected = task.priority == prio,
+                                    onClick = { onChangePriority(prio) },
+                                    label = { Text(prio.shortTag, fontSize = 11.sp) }
+                                )
+                            }
+
+                            FilterChip(
+                                selected = false,
+                                onClick = { onRescheduleTask(todayEpoch) },
+                                label = { Text("Today", fontSize = 11.sp) }
+                            )
+                            FilterChip(
+                                selected = false,
+                                onClick = { onRescheduleTask(todayEpoch + 1) },
+                                label = { Text("+1 Day", fontSize = 11.sp) }
+                            )
+
+                            TextButton(onClick = onDeleteTask) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete",
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Delete", color = Color(0xFFEF4444), fontSize = 12.sp)
+                            }
                         }
                     }
                 }

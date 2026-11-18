@@ -106,6 +106,7 @@ class MainActivity : ComponentActivity() {
             val selectedCalendarDay by viewModel.selectedCalendarEpochDay.collectAsState()
             val pomodoroState by viewModel.pomodoroState.collectAsState()
             val bannerMessage by viewModel.statusBannerMessage.collectAsState()
+            val canUndoDelete by viewModel.canUndoDelete.collectAsState()
 
             var currentTab by remember { mutableIntStateOf(0) }
             var showQuickAddSheet by remember {
@@ -288,6 +289,7 @@ class MainActivity : ComponentActivity() {
                                     selectedEpochDay = selectedCalendarDay,
                                     onSelectEpochDay = viewModel::selectCalendarDay,
                                     onToggleComplete = viewModel::toggleTaskCompletion,
+                                    onDeleteTask = viewModel::deleteTask,
                                     onOpenQuickAddForSelectedDay = {
                                         quickAddInitialText = ""
                                         quickAddInitialPriority = null
@@ -301,6 +303,7 @@ class MainActivity : ComponentActivity() {
                                     allTasks = allTasks,
                                     onToggleComplete = viewModel::toggleTaskCompletion,
                                     onMovePriority = viewModel::changeTaskPriority,
+                                    onDeleteTask = viewModel::deleteTask,
                                     onQuickAddInQuadrant = { prio ->
                                         quickAddInitialText = ""
                                         quickAddInitialPriority = prio
@@ -346,8 +349,15 @@ class MainActivity : ComponentActivity() {
                                     .align(Alignment.BottomCenter)
                                     .padding(16.dp),
                                 action = {
-                                    TextButton(onClick = { viewModel.clearBannerMessage() }) {
-                                        Text("OK")
+                                    Row {
+                                        if (canUndoDelete && msg.startsWith("Deleted")) {
+                                            TextButton(onClick = { viewModel.undoDeleteTask() }) {
+                                                Text("UNDO", fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        TextButton(onClick = { viewModel.clearBannerMessage() }) {
+                                            Text("OK")
+                                        }
                                     }
                                 }
                             ) {

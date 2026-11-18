@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
@@ -57,6 +58,7 @@ fun CalendarTimelineScreen(
     selectedEpochDay: Long,
     onSelectEpochDay: (Long) -> Unit,
     onToggleComplete: (TaskEntity) -> Unit,
+    onDeleteTask: (TaskEntity) -> Unit = {},
     onOpenQuickAddForSelectedDay: () -> Unit
 ) {
     val todayEpoch = LocalDate.now().toEpochDay()
@@ -233,7 +235,11 @@ fun CalendarTimelineScreen(
                 }
             } else {
                 items(timedTasks, key = { "timed_${it.id}" }) { task ->
-                    TimelineTaskRow(task = task, onToggleComplete = { onToggleComplete(task) })
+                    TimelineTaskRow(
+                        task = task,
+                        onToggleComplete = { onToggleComplete(task) },
+                        onDeleteTask = { onDeleteTask(task) }
+                    )
                 }
             }
 
@@ -257,7 +263,11 @@ fun CalendarTimelineScreen(
                 }
             } else {
                 items(allDayTasks, key = { "allday_${it.id}" }) { task ->
-                    TimelineTaskRow(task = task, onToggleComplete = { onToggleComplete(task) })
+                    TimelineTaskRow(
+                        task = task,
+                        onToggleComplete = { onToggleComplete(task) },
+                        onDeleteTask = { onDeleteTask(task) }
+                    )
                 }
             }
 
@@ -271,7 +281,8 @@ fun CalendarTimelineScreen(
 @Composable
 private fun TimelineTaskRow(
     task: TaskEntity,
-    onToggleComplete: () -> Unit
+    onToggleComplete: () -> Unit,
+    onDeleteTask: () -> Unit
 ) {
     val prioColor = Color(task.priority.colorHex)
 
@@ -357,6 +368,19 @@ private fun TimelineTaskRow(
                         text = "#${task.projectName} • ${task.priority.shortTag} • 🍅 ${task.estimatedPomodoros}p",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Direct 1-Tap Delete Button
+                IconButton(
+                    onClick = onDeleteTask,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Delete Task",
+                        tint = Color(0xFFEF4444).copy(alpha = 0.85f),
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }

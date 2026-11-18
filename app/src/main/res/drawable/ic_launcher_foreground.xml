@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Rounded Task Card / Shield Badge -->
+    <path
+        android:fillColor="#26FFFFFF"
+        android:pathData="M34,26h40c4.42,0 8,3.58 8,8v40c0,4.42 -3.58,8 -8,8H34c-4.42,0 -8,-3.58 -8,-8V34c0,-4.42 3.58,-8 8,-8z" />
+
+    <!-- Top Priority Accent Dot (Coral/Amber) -->
+    <path
+        android:fillColor="#FFF59E0B"
+        android:pathData="M72,34m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+
+    <!-- Bold Checkmark + Flow Arrow Ribbon (Emerald + Crisp White) -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M47.5,69.5L33.5,55.5l5.66,-5.66L47.5,58.18l21.34,-21.34l5.66,5.66L47.5,69.5z" />
+
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M47.5,66.5L35.5,54.5l4.24,-4.24L47.5,58.02l19.76,-19.76l4.24,4.24L47.5,66.5z" />
+</vector>

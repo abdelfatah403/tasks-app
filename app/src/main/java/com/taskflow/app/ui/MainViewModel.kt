@@ -256,11 +256,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var lastDeletedTask: TaskEntity? = null
+    private var lastDeletedSubtasks: List<SubtaskEntity> = emptyList()
+
+    private val _canUndoDelete = MutableStateFlow(false)
+    val canUndoDelete: StateFlow<Boolean> = _canUndoDelete.asStateFlow()
+
     fun deleteTask(task: TaskEntity) {
         viewModelScope.launch {
+            lastDeletedTask = task
+            lastDeletedSubtasks = allSubtasks.value.filter { it.taskId == task.id }
+            _canUndoDelete.value = true
             repository.deleteTask(task)
             refreshHomeWidget()
             _statusBannerMessage.value = "Deleted \"${task.title}\""
+        }
+    }
+
+    fun undoDeleteTask() {
+        val restoredTask = lastDeletedTask ?: return
+        val restoredSubs = lastDeletedSubtasks
+        lastDeletedTask = null
+        lastDeletedSubtasks = emptyList()
+        _canUndoDelete.value = false
+        viewModelScope.launch {
+            repository.addTask(restoredTask.copy(id = 0), restoredSubs.map { it.title })
+            refreshHomeWidget()
+            _statusBannerMessage.value = "Restored \"${restoredTask.title}\""
         }
     }
 
