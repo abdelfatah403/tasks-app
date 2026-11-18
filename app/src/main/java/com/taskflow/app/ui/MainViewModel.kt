@@ -28,10 +28,10 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 enum class TaskFilterMode(val label: String) {
+    ALL("All Tasks"),
     TODAY("Today"),
     UPCOMING("Upcoming"),
     STARRED("Starred"),
-    ALL("All / Inbox"),
     COMPLETED("Completed")
 }
 
@@ -90,8 +90,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val notes: StateFlow<List<NoteEntity>> = repository.notesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // UI Filters & Selection
-    private val _selectedFilter = MutableStateFlow(TaskFilterMode.TODAY)
+    // UI Filters & Selection (Defaults to ALL so all tasks across all projects/tags show by default)
+    private val _selectedFilter = MutableStateFlow(TaskFilterMode.ALL)
     val selectedFilter: StateFlow<TaskFilterMode> = _selectedFilter.asStateFlow()
 
     private val _selectedProjectId = MutableStateFlow<Long?>(null)
@@ -148,14 +148,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setFilterMode(mode: TaskFilterMode) {
         _selectedFilter.value = mode
+        if (mode == TaskFilterMode.ALL) {
+            // When user chooses "All Tasks", reset project & tag filters so all tasks in all projects/tags are shown
+            _selectedProjectId.value = null
+            _selectedTag.value = null
+        }
     }
 
     fun selectProjectFilter(projectId: Long?) {
-        _selectedProjectId.value = if (_selectedProjectId.value == projectId) null else projectId
+        if (projectId == null) {
+            _selectedProjectId.value = null
+            _selectedTag.value = null
+        } else {
+            _selectedProjectId.value = if (_selectedProjectId.value == projectId) null else projectId
+        }
     }
 
     fun selectTagFilter(tag: String?) {
-        _selectedTag.value = if (_selectedTag.value == tag) null else tag
+        if (tag == null) {
+            _selectedTag.value = null
+        } else {
+            _selectedTag.value = if (_selectedTag.value.equals(tag, ignoreCase = true)) null else tag
+        }
     }
 
     fun setSearchQuery(query: String) {

@@ -248,7 +248,7 @@ fun TasksScreen(
             }
         }
 
-        // 4. Project & Tag Filter Row
+        // 4. Project & Tag Filter Row (Starts with "All" so all projects & tags show by default)
         item {
             Row(
                 modifier = Modifier
@@ -257,6 +257,21 @@ fun TasksScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isAllCategoriesAndTags = selectedProjectId == null && selectedTag == null
+                FilterChip(
+                    selected = isAllCategoriesAndTags,
+                    onClick = {
+                        onSelectProject(null)
+                        onSelectTag(null)
+                    },
+                    label = {
+                        Text(
+                            text = "All",
+                            fontWeight = if (isAllCategoriesAndTags) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+
                 projects.forEach { project ->
                     val isSelected = selectedProjectId == project.id
                     FilterChip(
