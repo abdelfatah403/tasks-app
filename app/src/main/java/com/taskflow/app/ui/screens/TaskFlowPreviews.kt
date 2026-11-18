@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.taskflow.app.data.model.FocusSessionEntity
 import com.taskflow.app.data.model.HabitEntity
 import com.taskflow.app.data.model.HabitLogEntity
+import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
@@ -162,6 +163,43 @@ fun HabitsAndStatsPreview() {
             onExportBackupJson = { "{}" },
             onImportBackupJson = {},
             onShowMessage = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 412, heightDp = 892)
+@Composable
+fun NotesScreenPreview() {
+    TaskFlowTheme(darkTheme = true) {
+        NotesScreen(
+            notes = listOf(
+                NoteEntity(
+                    id = 1,
+                    title = "Q4 Product Launch & Architecture Notes",
+                    content = "• Prioritize 100% offline Room DB speed\n• Keep Smart NLP Quick-Add under 50ms\n• Support direct 1-tap Edit & Delete on every card",
+                    projectId = 2,
+                    projectName = "Work",
+                    tagsCsv = "architecture,roadmap",
+                    colorHex = 0xFF6366F1,
+                    isPinned = true
+                ),
+                NoteEntity(
+                    id = 2,
+                    title = "Atomic Habits — Key Takeaways",
+                    content = "1. Make it obvious\n2. Make it attractive\n3. Make it easy (2-minute rule)",
+                    projectId = 1,
+                    projectName = "Inbox",
+                    tagsCsv = "books,mindset",
+                    colorHex = 0xFF10B981,
+                    isPinned = false
+                )
+            ),
+            projects = sampleProjects,
+            onAddNote = { _, _, _, _, _, _ -> },
+            onUpdateNote = {},
+            onTogglePin = {},
+            onDeleteNote = {},
+            onConvertToTask = {}
         )
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -57,12 +58,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.taskflow.app.data.model.TaskEntity
 import com.taskflow.app.data.model.TaskPriority
 import com.taskflow.app.ui.MainViewModel
+import com.taskflow.app.ui.components.EditTaskBottomSheet
 import com.taskflow.app.ui.components.QuickAddBottomSheet
 import com.taskflow.app.ui.screens.CalendarTimelineScreen
 import com.taskflow.app.ui.screens.EisenhowerMatrixScreen
 import com.taskflow.app.ui.screens.HabitsAndStatsScreen
+import com.taskflow.app.ui.screens.NotesScreen
 import com.taskflow.app.ui.screens.PomodoroFocusScreen
 import com.taskflow.app.ui.screens.TasksScreen
 import com.taskflow.app.ui.theme.TaskFlowTheme
@@ -72,6 +76,7 @@ import java.util.Locale
 
 private enum class BottomNavTab(val label: String, val icon: ImageVector) {
     TASKS("Tasks", Icons.Default.CheckCircle),
+    NOTES("Notes", Icons.Default.Description),
     TIMELINE("Timeline", Icons.Default.CalendarMonth),
     MATRIX("Matrix", Icons.Default.GridView),
     POMODORO("Focus", Icons.Default.Timer),
@@ -98,6 +103,7 @@ class MainActivity : ComponentActivity() {
             val habits by viewModel.habits.collectAsState()
             val habitLogs by viewModel.habitLogs.collectAsState()
             val focusSessions by viewModel.focusSessions.collectAsState()
+            val notes by viewModel.notes.collectAsState()
 
             val selectedFilter by viewModel.selectedFilter.collectAsState()
             val selectedProjectId by viewModel.selectedProjectId.collectAsState()
@@ -117,6 +123,7 @@ class MainActivity : ComponentActivity() {
             }
             var quickAddInitialText by remember { mutableStateOf("") }
             var quickAddInitialPriority by remember { mutableStateOf<TaskPriority?>(null) }
+            var editingTask by remember { mutableStateOf<TaskEntity?>(null) }
             var showNewProjectDialog by remember { mutableStateOf(false) }
 
             // Pending Voice callback holder
@@ -210,7 +217,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     floatingActionButton = {
-                        if (currentTab != BottomNavTab.POMODORO.ordinal) {
+                        if (currentTab != BottomNavTab.POMODORO.ordinal && currentTab != BottomNavTab.NOTES.ordinal) {
                             ExtendedFloatingActionButton(
                                 onClick = {
                                     quickAddInitialText = ""
@@ -261,6 +268,7 @@ class MainActivity : ComponentActivity() {
                                     onSearchChange = viewModel::setSearchQuery,
                                     onToggleComplete = viewModel::toggleTaskCompletion,
                                     onToggleStar = viewModel::toggleTaskStar,
+                                    onEditTask = { task -> editingTask = task },
                                     onDeleteTask = viewModel::deleteTask,
                                     onChangePriority = viewModel::changeTaskPriority,
                                     onRescheduleTask = viewModel::rescheduleTask,
@@ -283,12 +291,28 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            BottomNavTab.NOTES -> {
+                                NotesScreen(
+                                    notes = notes,
+                                    projects = projects,
+                                    onAddNote = viewModel::addNote,
+                                    onUpdateNote = viewModel::updateNote,
+                                    onTogglePin = viewModel::toggleNotePin,
+                                    onDeleteNote = viewModel::deleteNote,
+                                    onConvertToTask = viewModel::convertNoteToTask,
+                                    onRequestVoiceInput = { callback ->
+                                        launchVoiceRecognition(callback)
+                                    }
+                                )
+                            }
+
                             BottomNavTab.TIMELINE -> {
                                 CalendarTimelineScreen(
                                     allTasks = allTasks,
                                     selectedEpochDay = selectedCalendarDay,
                                     onSelectEpochDay = viewModel::selectCalendarDay,
                                     onToggleComplete = viewModel::toggleTaskCompletion,
+                                    onEditTask = { task -> editingTask = task },
                                     onDeleteTask = viewModel::deleteTask,
                                     onOpenQuickAddForSelectedDay = {
                                         quickAddInitialText = ""
@@ -303,6 +327,7 @@ class MainActivity : ComponentActivity() {
                                     allTasks = allTasks,
                                     onToggleComplete = viewModel::toggleTaskCompletion,
                                     onMovePriority = viewModel::changeTaskPriority,
+                                    onEditTask = { task -> editingTask = task },
                                     onDeleteTask = viewModel::deleteTask,
                                     onQuickAddInQuadrant = { prio ->
                                         quickAddInitialText = ""
@@ -389,6 +414,25 @@ class MainActivity : ComponentActivity() {
                                 subtaskLines = subtasksList
                             )
                         }
+                    )
+                }
+
+                editingTask?.let { targetTask ->
+                    val currentSubtasks = subtasks.filter { it.taskId == targetTask.id }
+                    EditTaskBottomSheet(
+                        task = targetTask,
+                        projects = projects,
+                        subtasks = currentSubtasks,
+                        onDismiss = { editingTask = null },
+                        onSaveTask = { updatedTask ->
+                            viewModel.updateFullTask(updatedTask)
+                        },
+                        onDeleteTask = { taskToDelete ->
+                            viewModel.deleteTask(taskToDelete)
+                        },
+                        onAddSubtask = viewModel::addSubtask,
+                        onToggleSubtask = viewModel::toggleSubtask,
+                        onDeleteSubtask = viewModel::deleteSubtask
                     )
                 }
 

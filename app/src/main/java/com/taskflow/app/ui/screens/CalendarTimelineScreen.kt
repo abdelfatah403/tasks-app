@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
@@ -58,6 +59,7 @@ fun CalendarTimelineScreen(
     selectedEpochDay: Long,
     onSelectEpochDay: (Long) -> Unit,
     onToggleComplete: (TaskEntity) -> Unit,
+    onEditTask: (TaskEntity) -> Unit = {},
     onDeleteTask: (TaskEntity) -> Unit = {},
     onOpenQuickAddForSelectedDay: () -> Unit
 ) {
@@ -238,6 +240,7 @@ fun CalendarTimelineScreen(
                     TimelineTaskRow(
                         task = task,
                         onToggleComplete = { onToggleComplete(task) },
+                        onEditTask = { onEditTask(task) },
                         onDeleteTask = { onDeleteTask(task) }
                     )
                 }
@@ -266,6 +269,7 @@ fun CalendarTimelineScreen(
                     TimelineTaskRow(
                         task = task,
                         onToggleComplete = { onToggleComplete(task) },
+                        onEditTask = { onEditTask(task) },
                         onDeleteTask = { onDeleteTask(task) }
                     )
                 }
@@ -282,6 +286,7 @@ fun CalendarTimelineScreen(
 private fun TimelineTaskRow(
     task: TaskEntity,
     onToggleComplete: () -> Unit,
+    onEditTask: () -> Unit,
     onDeleteTask: () -> Unit
 ) {
     val prioColor = Color(task.priority.colorHex)
@@ -368,6 +373,19 @@ private fun TimelineTaskRow(
                         text = "#${task.projectName} • ${task.priority.shortTag} • 🍅 ${task.estimatedPomodoros}p",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Direct 1-Tap Edit Button
+                IconButton(
+                    onClick = onEditTask,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Task",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 

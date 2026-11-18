@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -97,6 +98,7 @@ fun TasksScreen(
     onSearchChange: (String) -> Unit,
     onToggleComplete: (TaskEntity) -> Unit,
     onToggleStar: (TaskEntity) -> Unit,
+    onEditTask: (TaskEntity) -> Unit = {},
     onDeleteTask: (TaskEntity) -> Unit,
     onChangePriority: (TaskEntity, TaskPriority) -> Unit,
     onRescheduleTask: (TaskEntity, Long) -> Unit,
@@ -349,6 +351,7 @@ fun TasksScreen(
                     todayEpoch = todayEpoch,
                     onToggleComplete = { onToggleComplete(task) },
                     onToggleStar = { onToggleStar(task) },
+                    onEditTask = { onEditTask(task) },
                     onDeleteTask = { onDeleteTask(task) },
                     onChangePriority = { newPrio -> onChangePriority(task, newPrio) },
                     onRescheduleTask = { epoch -> onRescheduleTask(task, epoch) },
@@ -375,6 +378,7 @@ private fun TaskCardItem(
     todayEpoch: Long,
     onToggleComplete: () -> Unit,
     onToggleStar: () -> Unit,
+    onEditTask: () -> Unit,
     onDeleteTask: () -> Unit,
     onChangePriority: (TaskPriority) -> Unit,
     onRescheduleTask: (Long) -> Unit,
@@ -572,7 +576,7 @@ private fun TaskCardItem(
                         }
                     }
 
-                    // Right-side Quick Actions: Star + Start Focus + Direct 1-Tap Delete
+                    // Right-side Quick Actions: Star + Edit + Delete + Start Focus
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
@@ -583,7 +587,20 @@ private fun TaskCardItem(
                                     imageVector = if (task.isStarred) Icons.Default.Star else Icons.Default.StarBorder,
                                     contentDescription = "Star",
                                     tint = if (task.isStarred) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
+                            // Direct 1-Tap Edit / Update Button
+                            IconButton(
+                                onClick = onEditTask,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Task",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
 
@@ -596,7 +613,7 @@ private fun TaskCardItem(
                                     imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = "Delete Task",
                                     tint = Color(0xFFEF4444).copy(alpha = 0.85f),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
                         }
@@ -727,6 +744,17 @@ private fun TaskCardItem(
                                 onClick = { onRescheduleTask(todayEpoch + 1) },
                                 label = { Text("+1 Day", fontSize = 11.sp) }
                             )
+
+                            TextButton(onClick = onEditTask) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Edit", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                            }
 
                             TextButton(onClick = onDeleteTask) {
                                 Icon(

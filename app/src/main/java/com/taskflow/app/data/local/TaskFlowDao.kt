@@ -10,6 +10,7 @@ import androidx.room.Update
 import com.taskflow.app.data.model.FocusSessionEntity
 import com.taskflow.app.data.model.HabitEntity
 import com.taskflow.app.data.model.HabitLogEntity
+import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.SubtaskEntity
 import com.taskflow.app.data.model.TaskEntity
@@ -142,6 +143,25 @@ interface TaskFlowDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFocusSessions(sessions: List<FocusSessionEntity>)
 
+    // --- Notes ---
+    @Query("SELECT * FROM notes ORDER BY isPinned DESC, updatedAtMillis DESC")
+    fun observeAllNotes(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesSnapshot(): List<NoteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNote(note: NoteEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNotes(notes: List<NoteEntity>)
+
+    @Update
+    suspend fun updateNote(note: NoteEntity)
+
+    @Delete
+    suspend fun deleteNote(note: NoteEntity)
+
     // --- Full Wipe & Restore for Offline JSON Backup ---
     @Query("DELETE FROM projects")
     suspend fun clearAllProjects()
@@ -161,6 +181,9 @@ interface TaskFlowDao {
     @Query("DELETE FROM focus_sessions")
     suspend fun clearAllFocusSessions()
 
+    @Query("DELETE FROM notes")
+    suspend fun clearAllNotes()
+
     @Transaction
     suspend fun restoreFullBackup(
         projects: List<ProjectEntity>,
@@ -168,7 +191,8 @@ interface TaskFlowDao {
         subtasks: List<SubtaskEntity>,
         habits: List<HabitEntity>,
         habitLogs: List<HabitLogEntity>,
-        focusSessions: List<FocusSessionEntity>
+        focusSessions: List<FocusSessionEntity>,
+        notes: List<NoteEntity>
     ) {
         clearAllSubtasks()
         clearAllTasks()
@@ -176,6 +200,7 @@ interface TaskFlowDao {
         clearAllHabitLogs()
         clearAllHabits()
         clearAllFocusSessions()
+        clearAllNotes()
 
         insertProjects(projects)
         insertTasks(tasks)
@@ -183,5 +208,6 @@ interface TaskFlowDao {
         insertHabits(habits)
         insertHabitLogs(habitLogs)
         insertFocusSessions(focusSessions)
+        insertNotes(notes)
     }
 }

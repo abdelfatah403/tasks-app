@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.taskflow.app.data.model.FocusSessionEntity
 import com.taskflow.app.data.model.HabitEntity
 import com.taskflow.app.data.model.HabitLogEntity
+import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
@@ -25,9 +26,10 @@ import java.time.LocalDate
         SubtaskEntity::class,
         HabitEntity::class,
         HabitLogEntity::class,
-        FocusSessionEntity::class
+        FocusSessionEntity::class,
+        NoteEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class TaskFlowDatabase : RoomDatabase() {
@@ -224,6 +226,38 @@ abstract class TaskFlowDatabase : RoomDatabase() {
                         taskTitle = "Morning Deep Work Sprint",
                         durationMinutes = 25,
                         epochDay = today - 1
+                    )
+                )
+            )
+
+            dao.insertNotes(
+                listOf(
+                    NoteEntity(
+                        title = "Q4 Product Launch & Architecture Notes",
+                        content = "• Prioritize 100% offline Room DB speed\n• Keep Smart NLP Quick-Add under 50ms\n• Support direct 1-tap Edit & Delete on every card\n• Include full JSON Export/Restore vault",
+                        projectId = 2,
+                        projectName = "Work",
+                        tagsCsv = "architecture,roadmap",
+                        colorHex = 0xFF6366F1,
+                        isPinned = true
+                    ),
+                    NoteEntity(
+                        title = "Atomic Habits — Key Takeaways",
+                        content = "1. Make it obvious\n2. Make it attractive\n3. Make it easy (2-minute rule)\n4. Make it satisfying (track streaks visually)",
+                        projectId = 3,
+                        projectName = "Personal",
+                        tagsCsv = "books,mindset",
+                        colorHex = 0xFF10B981,
+                        isPinned = true
+                    ),
+                    NoteEntity(
+                        title = "Grocery & Meal Prep Ideas",
+                        content = "- High-protein overnight oats\n- Grilled salmon + quinoa bowls\n- Cold brew concentrate & oat milk",
+                        projectId = 5,
+                        projectName = "Shopping",
+                        tagsCsv = "nutrition,food",
+                        colorHex = 0xFFF59E0B,
+                        isPinned = false
                     )
                 )
             )

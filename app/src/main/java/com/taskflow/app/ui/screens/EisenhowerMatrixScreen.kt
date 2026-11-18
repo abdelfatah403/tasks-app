@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -56,6 +57,7 @@ fun EisenhowerMatrixScreen(
     allTasks: List<TaskEntity>,
     onToggleComplete: (TaskEntity) -> Unit,
     onMovePriority: (TaskEntity, TaskPriority) -> Unit,
+    onEditTask: (TaskEntity) -> Unit = {},
     onDeleteTask: (TaskEntity) -> Unit = {},
     onQuickAddInQuadrant: (TaskPriority) -> Unit
 ) {
@@ -108,6 +110,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q1Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onEditTask = onEditTask,
                     onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P1) },
                     modifier = Modifier.weight(1f)
@@ -117,6 +120,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q2Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onEditTask = onEditTask,
                     onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P2) },
                     modifier = Modifier.weight(1f)
@@ -135,6 +139,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q3Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onEditTask = onEditTask,
                     onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P3) },
                     modifier = Modifier.weight(1f)
@@ -144,6 +149,7 @@ fun EisenhowerMatrixScreen(
                     tasks = q4Tasks,
                     onToggleComplete = onToggleComplete,
                     onMovePriority = onMovePriority,
+                    onEditTask = onEditTask,
                     onDeleteTask = onDeleteTask,
                     onQuickAdd = { onQuickAddInQuadrant(TaskPriority.P4) },
                     modifier = Modifier.weight(1f)
@@ -163,6 +169,7 @@ private fun QuadrantCard(
     tasks: List<TaskEntity>,
     onToggleComplete: (TaskEntity) -> Unit,
     onMovePriority: (TaskEntity, TaskPriority) -> Unit,
+    onEditTask: (TaskEntity) -> Unit,
     onDeleteTask: (TaskEntity) -> Unit,
     onQuickAdd: () -> Unit,
     modifier: Modifier = Modifier
@@ -248,6 +255,7 @@ private fun QuadrantCard(
                             accent = accent,
                             onToggleComplete = { onToggleComplete(task) },
                             onMovePriority = { target -> onMovePriority(task, target) },
+                            onEditTask = { onEditTask(task) },
                             onDeleteTask = { onDeleteTask(task) }
                         )
                     }
@@ -263,6 +271,7 @@ private fun QuadrantTaskRow(
     accent: Color,
     onToggleComplete: () -> Unit,
     onMovePriority: (TaskPriority) -> Unit,
+    onEditTask: () -> Unit,
     onDeleteTask: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -270,7 +279,9 @@ private fun QuadrantTaskRow(
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onEditTask() }
     ) {
         Row(
             modifier = Modifier
@@ -302,6 +313,17 @@ private fun QuadrantTaskRow(
                 )
             }
 
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Edit Task",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(15.dp)
+                    .clickable { onEditTask() }
+            )
+
+            Spacer(modifier = Modifier.width(5.dp))
+
             Box {
                 Icon(
                     imageVector = Icons.Default.SwapHoriz,
@@ -327,7 +349,7 @@ private fun QuadrantTaskRow(
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(5.dp))
 
             Icon(
                 imageVector = Icons.Default.DeleteOutline,

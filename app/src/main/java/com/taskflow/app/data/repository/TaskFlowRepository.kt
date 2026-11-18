@@ -5,6 +5,7 @@ import com.taskflow.app.data.model.BackupPayload
 import com.taskflow.app.data.model.FocusSessionEntity
 import com.taskflow.app.data.model.HabitEntity
 import com.taskflow.app.data.model.HabitLogEntity
+import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
@@ -29,6 +30,7 @@ class TaskFlowRepository(private val dao: TaskFlowDao) {
     val habitsFlow: Flow<List<HabitEntity>> = dao.observeAllHabits()
     val habitLogsFlow: Flow<List<HabitLogEntity>> = dao.observeAllHabitLogs()
     val focusSessionsFlow: Flow<List<FocusSessionEntity>> = dao.observeFocusSessions()
+    val notesFlow: Flow<List<NoteEntity>> = dao.observeAllNotes()
 
     suspend fun addTask(task: TaskEntity, subtaskTitles: List<String> = emptyList()): Long {
         val taskId = dao.insertTask(task)
@@ -199,17 +201,40 @@ class TaskFlowRepository(private val dao: TaskFlowDao) {
         }
     }
 
+    // --- Notes ---
+    suspend fun addNote(note: NoteEntity): Long {
+        return dao.insertNote(note)
+    }
+
+    suspend fun updateNote(note: NoteEntity) {
+        dao.updateNote(note.copy(updatedAtMillis = System.currentTimeMillis()))
+    }
+
+    suspend fun toggleNotePin(note: NoteEntity) {
+        dao.updateNote(
+            note.copy(
+                isPinned = !note.isPinned,
+                updatedAtMillis = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun deleteNote(note: NoteEntity) {
+        dao.deleteNote(note)
+    }
+
     // --- 100% Local JSON Backup Export & Restore ---
     suspend fun exportBackupJson(): String {
         val payload = BackupPayload(
-            version = 1,
+            version = 2,
             exportedAtMillis = System.currentTimeMillis(),
             projects = dao.getAllProjectsSnapshot(),
             tasks = dao.getAllTasksSnapshot(),
             subtasks = dao.getAllSubtasksSnapshot(),
             habits = dao.getAllHabitsSnapshot(),
             habitLogs = dao.getAllHabitLogsSnapshot(),
-            focusSessions = dao.getAllFocusSessionsSnapshot()
+            focusSessions = dao.getAllFocusSessionsSnapshot(),
+            notes = dao.getAllNotesSnapshot()
         )
         return json.encodeToString(payload)
     }
@@ -223,9 +248,10 @@ class TaskFlowRepository(private val dao: TaskFlowDao) {
                 subtasks = payload.subtasks,
                 habits = payload.habits,
                 habitLogs = payload.habitLogs,
-                focusSessions = payload.focusSessions
+                focusSessions = payload.focusSessions,
+                notes = payload.notes
             )
-            payload.tasks.size + payload.habits.size
+            payload.tasks.size + payload.habits.size + payload.notes.size
         }
     }
 }

@@ -7,6 +7,7 @@ import com.taskflow.app.data.local.TaskFlowDatabase
 import com.taskflow.app.data.model.FocusSessionEntity
 import com.taskflow.app.data.model.HabitEntity
 import com.taskflow.app.data.model.HabitLogEntity
+import com.taskflow.app.data.model.NoteEntity
 import com.taskflow.app.data.model.ProjectEntity
 import com.taskflow.app.data.model.RecurrenceType
 import com.taskflow.app.data.model.SubtaskEntity
@@ -84,6 +85,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val focusSessions: StateFlow<List<FocusSessionEntity>> = repository.focusSessionsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val notes: StateFlow<List<NoteEntity>> = repository.notesFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // UI Filters & Selection
@@ -256,6 +260,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateFullTask(updatedTask: TaskEntity) {
+        viewModelScope.launch {
+            repository.updateTask(updatedTask)
+            refreshHomeWidget()
+            _statusBannerMessage.value = "Updated \"${updatedTask.title}\""
+        }
+    }
+
     private var lastDeletedTask: TaskEntity? = null
     private var lastDeletedSubtasks: List<SubtaskEntity> = emptyList()
 
@@ -337,6 +349,75 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteHabit(habit: HabitEntity) {
         viewModelScope.launch {
             repository.deleteHabit(habit)
+        }
+    }
+
+    // --- Notes ---
+    fun addNote(
+        title: String,
+        content: String,
+        projectId: Long,
+        tagsCsv: String,
+        colorHex: Long,
+        isPinned: Boolean
+    ) {
+        if (title.isBlank() && content.isBlank()) return
+        viewModelScope.launch {
+            val proj = projects.value.find { it.id == projectId } ?: projects.value.firstOrNull()
+            val cleanedTags = tagsCsv
+                .split(",")
+                .map { it.trim().removePrefix("@") }
+                .filter { it.isNotEmpty() }
+                .joinToString(",")
+
+            val note = NoteEntity(
+                title = title.trim().ifBlank { "Untitled Note" },
+                content = content.trim(),
+                projectId = proj?.id ?: 1L,
+                projectName = proj?.name ?: "Inbox",
+                tagsCsv = cleanedTags,
+                colorHex = colorHex,
+                isPinned = isPinned
+            )
+            repository.addNote(note)
+            _statusBannerMessage.value = "Saved note \"${note.title}\""
+        }
+    }
+
+    fun updateNote(note: NoteEntity) {
+        viewModelScope.launch {
+            repository.updateNote(note)
+            _statusBannerMessage.value = "Updated note \"${note.title}\""
+        }
+    }
+
+    fun toggleNotePin(note: NoteEntity) {
+        viewModelScope.launch {
+            repository.toggleNotePin(note)
+        }
+    }
+
+    fun deleteNote(note: NoteEntity) {
+        viewModelScope.launch {
+            repository.deleteNote(note)
+            _statusBannerMessage.value = "Deleted note \"${note.title}\""
+        }
+    }
+
+    fun convertNoteToTask(note: NoteEntity) {
+        viewModelScope.launch {
+            val task = TaskEntity(
+                title = note.title,
+                notes = note.content,
+                projectId = note.projectId,
+                projectName = note.projectName,
+                priorityCode = TaskPriority.P2.code,
+                dueDateEpochDay = LocalDate.now().toEpochDay(),
+                tagsCsv = note.tagsCsv
+            )
+            repository.addTask(task)
+            refreshHomeWidget()
+            _statusBannerMessage.value = "Converted \"${note.title}\" into Today's Task!"
         }
     }
 

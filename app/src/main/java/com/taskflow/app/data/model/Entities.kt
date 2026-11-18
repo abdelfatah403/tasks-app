@@ -157,13 +157,32 @@ data class FocusSessionEntity(
 )
 
 @Serializable
+@Entity(tableName = "notes")
+data class NoteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val content: String = "",
+    val projectId: Long = 1L,
+    val projectName: String = "Inbox",
+    val tagsCsv: String = "",
+    val colorHex: Long = 0xFF6366F1,
+    val isPinned: Boolean = false,
+    val updatedAtMillis: Long = System.currentTimeMillis(),
+    val createdAtMillis: Long = System.currentTimeMillis()
+) {
+    val tagsList: List<String>
+        get() = tagsCsv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+@Serializable
 data class BackupPayload(
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAtMillis: Long = System.currentTimeMillis(),
     val projects: List<ProjectEntity> = emptyList(),
     val tasks: List<TaskEntity> = emptyList(),
     val subtasks: List<SubtaskEntity> = emptyList(),
     val habits: List<HabitEntity> = emptyList(),
     val habitLogs: List<HabitLogEntity> = emptyList(),
-    val focusSessions: List<FocusSessionEntity> = emptyList()
+    val focusSessions: List<FocusSessionEntity> = emptyList(),
+    val notes: List<NoteEntity> = emptyList()
 )
